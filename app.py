@@ -16,8 +16,28 @@ latest_results = {
     "heart_rate": None,
     "spo2": None,
     "predictions": None,
-    "history": []  
+    "reason": None
 }
+
+def get_anomaly_reason(hr, spo2):
+    hr_mean = 79.81708629223155
+    hr_std = 15.853146562716525
+    spo2_mean = 96.58683021304067
+    spo2_std = 2.3738548827407393
+    z_CI = 2.054 #96% confidence interval
+    hr_lower_bound = hr_mean - (z_CI * hr_std)
+    hr_upper_bound = hr_mean + (z_CI * hr_std)
+    spo2_lower_bound = spo2_mean - (z_CI * spo2_std)
+    reasons = []
+    if spo2 < spo2_lower_bound:
+        reasons.append("Low spO2")
+    if hr < hr_lower_bound:
+        reasons.append("Low HR")
+    if hr > hr_upper_bound:
+        reasons.append("High HR")
+    if len(reasons) == 0:
+        reasons.append("Unknown Reason")
+    return reasons
 
 #INPUT Format. Modify this if u want to add/change what gets sent
 class DataInput(BaseModel):
@@ -41,33 +61,29 @@ def update_data(data: DataInput):
     # Convert model's output: normal (0), anomaly (1)
     prediction_result = 1 if predictions[0] == -1 else 0
 
-    # Update the history to keep track of the last 3 results
-    latest_results["history"].append(prediction_result)
-    if len(latest_results["history"]) > 3:
-        latest_results["history"].pop(0)
-
-    # Check if the last 3 inputs were anomalies (all equal to 1)
-    if latest_results["history"] == [1, 1, 1]:
-        prediction_result = 2  # Set result to 2 if the last 3 were anomalies
-
     # Update the latest results
     latest_results["timestamp"] = timestamp
     latest_results["heart_rate"] = hr
     latest_results["spo2"] = spo2
     latest_results["predictions"] = prediction_result
+
+    if(latest_results["predictions"] == 0):
+        latest_results["reason"] = ["No anomaly"]
+    else:
+        latest_results["reason"] = get_anomaly_reason(hr, spo2)
     
     return {
         "status": "Data updated",
         "heart_rate": hr,
         "spo2": spo2,
         "timestamp": timestamp,
-        "predictions": prediction_result 
+        "predictions": prediction_result,
+        "reason": latest_results["reason"]
     }
 
 # API endpoint to get the latest prediction
 @app.get("/latest/")
 def get_latest():
-    print(latest_results["history"])
     if latest_results["timestamp"] is None:
         return {"error": "No data available yet"}
     
@@ -75,7 +91,6 @@ def get_latest():
         "timestamp": latest_results["timestamp"],
         "heart_rate": latest_results["heart_rate"],
         "spo2": latest_results["spo2"],
-        "predictions": latest_results["predictions"]
-        #0 is normal, 1 means last input was an anomaly, 2 means last 3 inputs were anomalies
-        #I suggesting using 2 for alerts so that it doesnt freak out basedd on 1 misreading
+        "predictions": latest_results["predictions"],
+        "reason": latest_results["reason"]
     }

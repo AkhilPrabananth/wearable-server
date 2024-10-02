@@ -1,8 +1,8 @@
 import requests
 
 data = {
-    "heart_rate": 150,
-    "spo2": 95,
+    "heart_rate": 200,
+    "spo2": 91,
     "timestamp": "2024-10-02T09:00:06"
 }
 
