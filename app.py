@@ -1,9 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import sklearn
 import pickle
 import numpy as np
-print(sklearn.__version__)
+
 app = FastAPI()
 
 with open('isolation_forest_model.pkl', 'rb') as f:
@@ -68,6 +67,7 @@ def update_data(data: DataInput):
 # API endpoint to get the latest prediction
 @app.get("/latest/")
 def get_latest():
+    print(latest_results["history"])
     if latest_results["timestamp"] is None:
         return {"error": "No data available yet"}
     
